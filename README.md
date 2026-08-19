@@ -30,10 +30,60 @@ Existing employees, users, duplicate links, and role assignments are handled add
 
 ## Prerequisites
 
+Before you clone or configure this repository, ensure the following.
+
+### Software and access
+
 - **Python 3.10+** (recommended)
-- Network access to your F&O environment URL
-- **Microsoft Entra ID** app registration with a client secret
-- F&O service account (mapped from that app) with rights to create employees, system users, and assign security roles
+- Network access to your F&O environment URL (for example `https://your-env.operations.dynamics.com`)
+- Permission in **Microsoft Entra ID** to register applications (or an admin who can register one for you)
+- Permission in **F&O** to map Entra applications and to assign security roles to the service user
+
+This tool authenticates with **OAuth 2.0 client credentials** (application ID + client secret). It does not sign in interactively as a human user.
+
+### Microsoft Entra ID — register the application
+
+Complete these steps once per integration app. Official background: [Service endpoints overview — Authentication](https://learn.microsoft.com/dynamics365/fin-ops-core/dev-itpro/data-entities/services-home-page#authentication).
+
+1. Sign in to the [Microsoft Entra admin center](https://entra.microsoft.com) (or [Azure portal](https://portal.azure.com) → **Microsoft Entra ID**).
+2. Go to **Applications** → **App registrations** → **New registration**.
+3. Enter a **Name** (for example `D365FO System Users OData`).
+4. Choose **Accounts in this organizational directory only** (single tenant) unless your organization requires otherwise.
+5. Leave **Redirect URI** empty for client-credentials usage, then select **Register**.
+6. On the app **Overview** page, copy and save:
+   - **Application (client) ID** → use as `client_id` in [`config/d365_environments.yaml`](config/d365_environments.yaml)
+   - **Directory (tenant) ID** → use as `tenant_id`
+7. Go to **Certificates & secrets** → **New client secret** → add a description and expiry → **Add**. Copy the **Value** immediately (it is shown only once) → use as `client_secret`.
+8. Go to **API permissions** → **Add a permission**.
+9. Open **APIs my organization uses**, search for **`Microsoft Dynamics ERP`** (use the full name; a short search may show no results).
+10. Select **Application permissions** (not Delegated) and enable the permissions your tenant requires for OData/service access to F&O. Many environments use permissions such as accessing Dynamics ERP data via the service API—match what your F&O administrator expects for server-to-server integration.
+11. Select **Grant admin consent for [your tenant]** so the application permissions show a granted status.
+
+You will paste `tenant_id`, `client_id`, and `client_secret` into `d365_environments.yaml` when you configure the repo.
+
+### Dynamics 365 F&O — service user and Entra mapping
+
+The Entra app must act in F&O **as a system user** with enough privileges to create workers, system users, person links, and security assignments.
+
+1. **Create or choose an F&O system user** (recommended: a dedicated integration account, not a personal admin account):
+   - In F&O, go to **System administration** → **Users** (path may appear under **Modules** depending on your shell).
+   - Create a user with type suitable for service/automation use, or reuse an existing service account your organization approves.
+2. **Assign security roles** to that user so OData POSTs succeed, including at minimum capabilities to:
+   - Maintain **employees** (`EmployeesV2`)
+   - Maintain **system users** (`SystemUsers`)
+   - Create **person user** links (`PersonUsers`)
+   - Assign **security roles** and **role organization** scope when your input file includes security columns  
+   Exact role names vary by project (for example combinations of system administrator, security administrator, and HR/workforce roles). Work with your F&O functional consultant if POST calls return authorization errors.
+3. **Register the Entra application in F&O**:
+   - Go to **System administration** → **Setup** → **Microsoft Entra applications** (label may still show “Azure Active Directory applications” in some builds).
+   - Select **New**.
+   - **Client Id**: the Entra **Application (client) ID** from the previous section.
+   - **Name**: a label for this registration (for example `System Users OData`).
+   - **User ID**: the F&O user from step 1 (the account whose roles the app will use).
+   - Save the record.
+4. Note your environment URL (for example from LCS or the browser when signed in to F&O) → use as `environment_url` in `d365_environments.yaml`. Set `company` to the data area ID you use on OData requests (often your legal entity code, such as `USMF` or `1000`, depending on how your configs and environment are set up).
+
+After this setup, you can verify connectivity with `--test-connection` once `d365_environments.yaml` is filled in (see **Configure the repository** below).
 
 ## Clone the repository
 
@@ -90,13 +140,6 @@ Adjust company, language, employment dates, and other fixed fields without chang
 | [`config/security_user_role_organization.yaml`](config/security_user_role_organization.yaml) | `SecurityUserRoleOrganizations` |
 
 Use `source` on a column to map from input sheet fields; use `odata_on_create: true` to send defaults on create. Override OData property names with `odata_property` if needed.
-
-### 5. F&O and Entra setup
-
-1. In Entra: register an app and create a **client secret**.
-2. API permission: **Microsoft Dynamics ERP** (grant admin consent).
-3. In F&O: **System administration → Microsoft Entra applications** — map the application (client) ID to a user.
-4. Assign that user security roles that allow employee creation, system user maintenance, and security role assignment.
 
 ## Input columns
 
