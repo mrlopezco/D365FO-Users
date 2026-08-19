@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from itertools import product
-from typing import Any
 
 from app.d365.odata_mapping import normalize_property_key
+from app.util.helpers import user_label as _user_label_for_row
 
 OPTIONAL_SECURITY_COLUMNS = (
     "SecurityRoles",
@@ -24,14 +24,6 @@ def parse_csv_list(value: str | None) -> list[str]:
     return [part.strip() for part in text.split(",") if part.strip()]
 
 
-def _user_label(user: dict[str, str]) -> str:
-    for key in ("Email", "UserId", "Alias"):
-        val = user.get(key, "").strip()
-        if val:
-            return val
-    return user.get("FirstName", "user")
-
-
 def validate_user_security_columns(user: dict[str, str], *, row_num: int | None = None) -> None:
     """Require org columns to be both set or both empty."""
     le = user.get("SecurityLegalEntityIds", "").strip()
@@ -39,7 +31,7 @@ def validate_user_security_columns(user: dict[str, str], *, row_num: int | None 
     if bool(le) != bool(hier):
         prefix = f"Row {row_num}: " if row_num else ""
         raise ValueError(
-            f"{prefix}{_user_label(user)!r}: SecurityLegalEntityIds and "
+            f"{prefix}{_user_label_for_row(user)!r}: SecurityLegalEntityIds and "
             "SecurityLegalEntities must both be filled or both be empty."
         )
 
@@ -71,7 +63,7 @@ def expand_role_assignments(users: list[dict[str, str]]) -> list[RoleAssignmentR
         user_id = user.get("UserId", "").strip()
         if not user_id:
             continue
-        label = _user_label(user)
+        label = _user_label_for_row(user)
         for role_name in parse_csv_list(user.get("SecurityRoles")):
             out.append(
                 RoleAssignmentRow(
@@ -89,7 +81,7 @@ def expand_org_assignments(users: list[dict[str, str]]) -> list[OrgAssignmentRow
         user_id = user.get("UserId", "").strip()
         if not user_id:
             continue
-        label = _user_label(user)
+        label = _user_label_for_row(user)
         roles = parse_csv_list(user.get("SecurityRoles"))
         legal_entities = parse_csv_list(user.get("SecurityLegalEntityIds"))
         hierarchies = parse_csv_list(user.get("SecurityLegalEntities"))

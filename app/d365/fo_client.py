@@ -3,30 +3,11 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 import urllib.error
 import urllib.parse
 import urllib.request
 from typing import Any
-
-
-def load_env_file(path: str) -> None:
-    """Set process env from KEY=VALUE lines (does not override existing vars)."""
-    with open(path, encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if line.startswith("export "):
-                line = line[7:].strip()
-            key, _, value = line.partition("=")
-            key = key.strip()
-            if not key:
-                continue
-            if key in os.environ:
-                continue
-            os.environ[key] = value.strip().strip('"').strip("'")
 
 
 def normalize_environment_url(url: str) -> str:

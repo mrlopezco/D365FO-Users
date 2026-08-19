@@ -2,6 +2,12 @@
 
 Onboard users into **Dynamics 365 Finance and Operations** from a single Excel input file. The tool creates the worker record, the system user, links them together, and assigns the correct security roles (including legal-entity organization scope when configured)—all via **OData POST** to your environment.
 
+Licensed under the [MIT License](LICENSE). Security issues: see [SECURITY.md](SECURITY.md).
+
+**Screenshot**:
+
+![Main Screenshot](assets/images/1.png)
+
 ## What this tool does
 
 For each row in your input workbook, the import runs in this order:
@@ -26,7 +32,15 @@ flowchart LR
   tool --> fo
 ```
 
-Existing employees, users, duplicate links, and role assignments are handled add-only: preflight and runtime checks skip what is already in the environment when possible.
+Existing employees, users, duplicate links, and role assignments are handled add-only: preflight and runtime checks skip what is already in the environment when possible. The summary line **“succeeded”** includes skipped steps (no new POST)—not only newly created records.
+
+### Secrets and local data
+
+- **`client_secret`** and other credentials belong only in gitignored [`config/d365_environments.yaml`](config/d365_environments.yaml) (copy from [`config/d365_environments.example.yaml`](config/d365_environments.example.yaml)). This repository does not read secrets from environment variables.
+- **`input/users.xlsx`** is gitignored; use [`input/users-example.xlsx`](input/users-example.xlsx) as the tracked template.
+- **`--verbose`** may print full OData error JSON from F&O, which can include user identifiers or email addresses. Do not paste those logs in public issues.
+- Before publishing or sharing the repo widely, verify git history does not contain real environment or user files:  
+  `git log --all -- config/d365_environments.yaml input/users.xlsx`
 
 ## Prerequisites
 
@@ -208,8 +222,81 @@ After preflight, confirm unless you pass `--yes`.
 | `--dry-run` | Build payloads only; no POST (still connects for schema/roles when secrets are set) |
 | `--config-dir` | Alternate folder for entity YAML (default: `config`) |
 | `--input` | Alternate input workbook (default: `input/users.xlsx`) |
+| `--log-file` | Append structured log lines to a file (stdout output unchanged) |
+
+## Architecture
+
+```mermaid
+flowchart TB
+  main[app.main CLI]
+  orch[app.importer.orchestrator]
+  excel[app.io.excel]
+  entity[app.config.entity YAML rows]
+  preflight[app.preflight.plan]
+  entities[app.importer.entities POST loops]
+  security[app.importer.security]
+  d365[app.d365 client and mapping]
+
+  main --> orch
+  orch --> excel
+  orch --> preflight
+  orch --> entities
+  orch --> security
+  entities --> entity
+  entities --> d365
+  security --> entity
+  security --> d365
+  preflight --> d365
+```
+
+Module map:
+
+| Area | Package / module |
+|------|------------------|
+| CLI | [`app/main.py`](app/main.py), [`app/cli/prompts.py`](app/cli/prompts.py) |
+| Input | [`app/io/excel.py`](app/io/excel.py) |
+| Entity YAML | [`app/config/entity.py`](app/config/entity.py) |
+| Preflight | [`app/preflight/checks.py`](app/preflight/checks.py), [`app/preflight/plan.py`](app/preflight/plan.py) |
+| Import | [`app/importer/orchestrator.py`](app/importer/orchestrator.py), [`app/importer/entities.py`](app/importer/entities.py), [`app/importer/security.py`](app/importer/security.py) |
+| F&O HTTP | [`app/d365/fo_client.py`](app/d365/fo_client.py), [`app/d365/odata_mapping.py`](app/d365/odata_mapping.py) |
+
+Legacy paths such as `app/odata_import.py` re-export the new modules for compatibility.
+
+## Troubleshooting
+
+| Symptom | Likely cause |
+|---------|----------------|
+| Token OK but F&O returns 401/403 | Entra app not mapped in F&O **Microsoft Entra applications**, or service user lacks security roles |
+| Unknown security role name | Role display name in Excel does not match F&O **SecurityRoles** (catalog loaded with `$top=5000`) |
+| PersonUsers skipped — no PartyNumber | Employee create failed or did not return PartyNumber; employee match is primarily by **PrimaryContactEmail** |
+| Could not discover OData property names | Empty entity set in environment; tool uses built-in fallbacks for PersonUsers and security entities, or add `odata_property` in YAML |
+| Preflight slow on many users | Security assignment checks issue one GET per user for role and org associations |
+
+## Limitations
+
+- Employee “already exists” detection in preflight uses **email** on `EmployeesV2`, not `UserId`.
+- Security role and organization existence checks query per user (not batched).
+- OData property names are inferred from a single sample row (`$top=1`) per entity when data exists.
 
 ## Development and releases
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for branch workflow and PR checks.
+
+Optional console entry after install: `d365fo-users` (same as `python -m app.main`; see [`pyproject.toml`](pyproject.toml)).
+
+### Local checks
+
+```powershell
+.\.venv\Scripts\pip.exe install -r requirements.txt -r requirements-dev.txt
+.\.venv\Scripts\ruff.exe check app
+.\.venv\Scripts\python.exe -m app.main --help
+```
+
+Smoke (no POST, example workbook):
+
+```powershell
+.\.venv\Scripts\python.exe -m app.main --environment YOUR_ENV --input input\users-example.xlsx --dry-run --skip-preflight --yes
+```
 
 Day-to-day work happens on the **`development`** branch. **`main`** stays stable and receives changes only through pull requests.
 

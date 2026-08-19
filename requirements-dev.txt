@@ -1,0 +1,2 @@
+# Dev tools for lint/CI only (see CONTRIBUTING.md)
+ruff==0.9.10

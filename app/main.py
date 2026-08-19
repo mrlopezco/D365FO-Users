@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
+import traceback
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -11,10 +13,17 @@ ROOT = Path(__file__).resolve().parent.parent
 if __package__ in (None, ""):
     sys.path.insert(0, str(ROOT))
 
-from app.cli_prompts import choose_environment
+from app.cli.prompts import choose_environment
 from app.d365.environments import get_environment_by_name, load_environments
-from app.odata_import import run as odata_run
-from app.odata_import import run_connection_test
+from app.importer.orchestrator import run as odata_run
+from app.importer.orchestrator import run_connection_test
+from app.logging_setup import configure_logging, debug_tracebacks_enabled
+
+
+def _report_error(message: str, exc: BaseException | None = None) -> None:
+    print(f"Error: {message}", file=sys.stderr)
+    if exc is not None and debug_tracebacks_enabled():
+        traceback.print_exception(type(exc), exc, exc.__traceback__, file=sys.stderr)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -88,11 +97,26 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Skip duplicate checks against the environment",
     )
+    parser.add_argument(
+        "--log-file",
+        type=Path,
+        default=None,
+        help="Append log output to this file (stdout logging remains)",
+    )
     return parser.parse_args(argv)
+
+
+def _setup_log_file(path: Path) -> None:
+    handler = logging.FileHandler(path, encoding="utf-8")
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    logging.getLogger().addHandler(handler)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    configure_logging()
+    if args.log_file is not None:
+        _setup_log_file(args.log_file.resolve())
 
     input_path = args.input.resolve()
     config_dir = args.config_dir.resolve()
@@ -101,29 +125,29 @@ def main(argv: list[str] | None = None) -> int:
     require_secrets = not args.dry_run
     try:
         environments = load_environments(env_config_path, require_secrets=require_secrets)
-    except Exception as exc:  # noqa: BLE001
-        print(f"Error: {exc}", file=sys.stderr)
+    except (FileNotFoundError, ValueError) as exc:
+        _report_error(str(exc), exc)
         return 1
 
     env_name = args.environment
     if env_name is None:
         try:
             env = choose_environment(environments)
-        except Exception as exc:  # noqa: BLE001
-            print(f"Error: {exc}", file=sys.stderr)
+        except (ValueError, EOFError, KeyboardInterrupt) as exc:
+            _report_error(str(exc), exc)
             return 1
     else:
         try:
             env = get_environment_by_name(environments, env_name)
         except ValueError as exc:
-            print(f"Error: {exc}", file=sys.stderr)
+            _report_error(str(exc), exc)
             return 1
 
     if args.test_connection:
         try:
             run_connection_test(env)
-        except Exception as exc:  # noqa: BLE001
-            print(f"Error: {exc}", file=sys.stderr)
+        except RuntimeError as exc:
+            _report_error(str(exc), exc)
             return 1
         return 0
 
@@ -148,8 +172,8 @@ def main(argv: list[str] | None = None) -> int:
             import_security=not args.skip_security,
             assign_security_orgs=not args.skip_security_orgs,
         )
-    except Exception as exc:  # noqa: BLE001
-        print(f"Error: {exc}", file=sys.stderr)
+    except (FileNotFoundError, ValueError, RuntimeError) as exc:
+        _report_error(str(exc), exc)
         return 1
 
     if result.cancelled:
