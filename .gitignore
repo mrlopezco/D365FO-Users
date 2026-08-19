@@ -3,3 +3,6 @@
 __pycache__/
 config/d365_environments.yaml
 input/users.xlsx
+DMF_Samples/
+_archive/
+*.local.yaml
