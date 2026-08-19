@@ -1,6 +1,7 @@
 # D365 F&O System Users
 
 Onboard users into **Dynamics 365 Finance and Operations** from a single Excel input file. The tool creates the worker record, the system user, links them together, and assigns the correct security roles (including legal-entity organization scope when configured)—all via **OData POST** to your environment.
+![Main Screenshot](assets/images/1.png)
 
 ## What this tool does
 
