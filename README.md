@@ -1,16 +1,147 @@
-# FNO DMF Import Excel Generator
+# D365 F&O System Users
 
-Generate Dynamics 365 Finance and Operations DMF import workbooks for **Employee V2**, **User information**, and **security role assignments** from a simple input Excel—or import the same data directly into F&O via OData.
+Onboard users into **Dynamics 365 Finance and Operations** from a single Excel input file. The tool creates the worker record, the system user, links them together, and assigns the correct security roles (including legal-entity organization scope when configured)—all via **OData POST** to your environment.
 
-## Setup
+## What this tool does
+
+For each row in your input workbook, the import runs in this order:
+
+1. **Employee (worker)** — `EmployeesV2`
+2. **System user** — `SystemUsers`
+3. **User ↔ worker link** — `PersonUsers` (unless you use `--skip-person-link`)
+4. **Security roles** — `SecurityUserRoleAssociations` (when `SecurityRoles` is filled)
+5. **Role organization scope** — `SecurityUserRoleOrganizations` (when legal-entity org columns are filled)
+
+Column values and defaults come from YAML under [`config/`](config/). OData JSON property names are discovered from F&O at runtime (`$top=1` on each entity).
+
+```mermaid
+flowchart LR
+  input[input/users.xlsx]
+  yaml[config entity YAML]
+  tool[app.main OData import]
+  fo[D365 F and O]
+
+  input --> tool
+  yaml --> tool
+  tool --> fo
+```
+
+Existing employees, users, duplicate links, and role assignments are handled add-only: preflight and runtime checks skip what is already in the environment when possible.
+
+## Prerequisites
+
+Before you clone or configure this repository, ensure the following.
+
+### Software and access
+
+- **Python 3.10+** (recommended)
+- Network access to your F&O environment URL (for example `https://your-env.operations.dynamics.com`)
+- Permission in **Microsoft Entra ID** to register applications (or an admin who can register one for you)
+- Permission in **F&O** to map Entra applications and to assign security roles to the service user
+
+This tool authenticates with **OAuth 2.0 client credentials** (application ID + client secret). It does not sign in interactively as a human user.
+
+### Microsoft Entra ID — register the application
+
+Complete these steps once per integration app. Official background: [Service endpoints overview — Authentication](https://learn.microsoft.com/dynamics365/fin-ops-core/dev-itpro/data-entities/services-home-page#authentication).
+
+1. Sign in to the [Microsoft Entra admin center](https://entra.microsoft.com) (or [Azure portal](https://portal.azure.com) → **Microsoft Entra ID**).
+2. Go to **Applications** → **App registrations** → **New registration**.
+3. Enter a **Name** (for example `D365FO System Users OData`).
+4. Choose **Accounts in this organizational directory only** (single tenant) unless your organization requires otherwise.
+5. Leave **Redirect URI** empty for client-credentials usage, then select **Register**.
+6. On the app **Overview** page, copy and save:
+   - **Application (client) ID** → use as `client_id` in [`config/d365_environments.yaml`](config/d365_environments.yaml)
+   - **Directory (tenant) ID** → use as `tenant_id`
+7. Go to **Certificates & secrets** → **New client secret** → add a description and expiry → **Add**. Copy the **Value** immediately (it is shown only once) → use as `client_secret`.
+8. Go to **API permissions** → **Add a permission**.
+9. Open **APIs my organization uses**, search for **`Microsoft Dynamics ERP`** (use the full name; a short search may show no results).
+10. Select **Application permissions** (not Delegated) and enable the permissions your tenant requires for OData/service access to F&O. Many environments use permissions such as accessing Dynamics ERP data via the service API—match what your F&O administrator expects for server-to-server integration.
+11. Select **Grant admin consent for [your tenant]** so the application permissions show a granted status.
+
+You will paste `tenant_id`, `client_id`, and `client_secret` into `d365_environments.yaml` when you configure the repo.
+
+### Dynamics 365 F&O — service user and Entra mapping
+
+The Entra app must act in F&O **as a system user** with enough privileges to create workers, system users, person links, and security assignments.
+
+1. **Create or choose an F&O system user** (recommended: a dedicated integration account, not a personal admin account):
+   - In F&O, go to **System administration** → **Users** (path may appear under **Modules** depending on your shell).
+   - Create a user with type suitable for service/automation use, or reuse an existing service account your organization approves.
+2. **Assign security roles** to that user so OData POSTs succeed, including at minimum capabilities to:
+   - Maintain **employees** (`EmployeesV2`)
+   - Maintain **system users** (`SystemUsers`)
+   - Create **person user** links (`PersonUsers`)
+   - Assign **security roles** and **role organization** scope when your input file includes security columns  
+   Exact role names vary by project (for example combinations of system administrator, security administrator, and HR/workforce roles). Work with your F&O functional consultant if POST calls return authorization errors.
+3. **Register the Entra application in F&O**:
+   - Go to **System administration** → **Setup** → **Microsoft Entra applications** (label may still show “Azure Active Directory applications” in some builds).
+   - Select **New**.
+   - **Client Id**: the Entra **Application (client) ID** from the previous section.
+   - **Name**: a label for this registration (for example `System Users OData`).
+   - **User ID**: the F&O user from step 1 (the account whose roles the app will use).
+   - Save the record.
+4. Note your environment URL (for example from LCS or the browser when signed in to F&O) → use as `environment_url` in `d365_environments.yaml`. Set `company` to the data area ID you use on OData requests (often your legal entity code, such as `USMF` or `1000`, depending on how your configs and environment are set up).
+
+After this setup, you can verify connectivity with `--test-connection` once `d365_environments.yaml` is filled in (see **Configure the repository** below).
+
+## Clone the repository
+
+From PowerShell:
 
 ```powershell
+git clone https://github.com/mrlopezco/D365FO-Users.git
+cd D365FO-Users
+```
+
+If you already have the repo locally, pull the latest changes from your usual remote instead of cloning again.
+
+## Configure the repository
+
+### 1. Python environment
+
+```powershell
+python -m venv .venv
 .\.venv\Scripts\pip.exe install -r requirements.txt
 ```
 
-## Input
+### 2. D365 environments (secrets)
 
-Copy [`input/users-example.xlsx`](input/users-example.xlsx) to `input/users.xlsx` (the real file is **gitignored** and must not be committed). Edit `input/users.xlsx` (sheet `Users`) with one row per user:
+Copy the example file and add your real values (including `client_secret`):
+
+```powershell
+Copy-Item config\d365_environments.example.yaml config\d365_environments.yaml
+```
+
+Edit [`config/d365_environments.yaml`](config/d365_environments.yaml). This file is **gitignored** and must not be committed.
+
+Each environment entry needs at least: `name`, `environment_url`, `tenant_id`, `client_id`, `client_secret`, and optionally `company` (data area used on OData requests).
+
+### 3. Input users workbook
+
+Copy the template and edit the `Users` sheet (one row per person):
+
+```powershell
+Copy-Item input\users-example.xlsx input\users.xlsx
+```
+
+[`input/users.xlsx`](input/users.xlsx) is **gitignored**. Use [`input/users-example.xlsx`](input/users-example.xlsx) as the tracked template.
+
+### 4. Entity defaults (optional)
+
+Adjust company, language, employment dates, and other fixed fields without changing code:
+
+| Config | OData entity |
+|--------|----------------|
+| [`config/employee_v2.yaml`](config/employee_v2.yaml) | `EmployeesV2` |
+| [`config/user_information.yaml`](config/user_information.yaml) | `SystemUsers` |
+| [`config/person_users.yaml`](config/person_users.yaml) | `PersonUsers` |
+| [`config/security_user_role_association.yaml`](config/security_user_role_association.yaml) | `SecurityUserRoleAssociations` |
+| [`config/security_user_role_organization.yaml`](config/security_user_role_organization.yaml) | `SecurityUserRoleOrganizations` |
+
+Use `source` on a column to map from input sheet fields; use `odata_on_create: true` to send defaults on create. Override OData property names with `odata_property` if needed.
+
+## Input columns
 
 | Column | Maps to |
 |--------|---------|
@@ -19,33 +150,19 @@ Copy [`input/users-example.xlsx`](input/users-example.xlsx) to `input/users.xlsx
 | `Email` | User `EMAIL` and Employee `PRIMARYCONTACTEMAIL` |
 | `FirstName` | Employee `FIRSTNAME` (also builds display name) |
 | `LastName` | Employee `LASTNAME` (also builds display name) |
-| `SecurityRoles` | Optional. Comma-separated F&O role display names → `SecurityUserRoleAssociations` |
-| `SecurityLegalEntityIds` | Optional. Comma-separated legal entity codes (e.g. `1000`) → org assignment `OrganizationId` |
-| `SecurityLegalEntities` | Optional. Comma-separated organization hierarchy types (e.g. `OPERATIONALLE`) → `HierarchyType` |
+| `SecurityRoles` | Optional. Comma-separated F&O role **display names** |
+| `SecurityLegalEntityIds` | Optional. Comma-separated legal entity codes (e.g. `1000`) |
+| `SecurityLegalEntities` | Optional. Comma-separated hierarchy types (e.g. `OPERATIONALLE`) |
 
-If either org column is filled, **both** must be filled. Leave all three security columns empty to onboard user/worker only (no role POSTs). Org scope rows are created for the Cartesian product of roles × legal entities × hierarchy types on that row.
+If either org column is filled, **both** org columns must be filled. Leave all three security columns empty to create user and worker only (no role POSTs). Organization scope uses the Cartesian product of roles × legal entities × hierarchy types on that row.
 
 Display name (`FirstName LastName`) fills User `USERNAME` and Employee `NAME` / `NAMEALIAS`.
 
-All other DMF columns come from defaults in:
+Role names are resolved to identifiers via GET `SecurityRoles`.
 
-- [`config/employee_v2.yaml`](config/employee_v2.yaml) — OData entity `EmployeesV2`
-- [`config/user_information.yaml`](config/user_information.yaml) — OData entity `SystemUsers`
-- [`config/person_users.yaml`](config/person_users.yaml) — OData entity `PersonUsers` (user ↔ person link)
-- [`config/security_user_role_association.yaml`](config/security_user_role_association.yaml) — OData `SecurityUserRoleAssociations`
-- [`config/security_user_role_organization.yaml`](config/security_user_role_organization.yaml) — OData `SecurityUserRoleOrganizations`
+## Run
 
-Change company, language, employment dates, and similar values in those YAML files without editing the script.
-
-OData import order: **EmployeesV2** → **SystemUsers** → **PersonUsers** → **SecurityUserRoleAssociations** → **SecurityUserRoleOrganizations** (when org columns are used). Role names are resolved to identifiers via GET `SecurityRoles`. Existing role/org assignments are skipped (add-only). Existing system users and duplicate person links are treated as success when F&O reports they already exist.
-
-Try the template without touching your real file:
-
-```powershell
-.\.venv\Scripts\python.exe -m app.main --mode odata --environment CSCTEST02 --input input\users-example.xlsx --dry-run --skip-preflight --yes
-```
-
-## Run (interactive)
+### Interactive
 
 From the project root:
 
@@ -53,67 +170,77 @@ From the project root:
 .\.venv\Scripts\python.exe -m app.main
 ```
 
-You will be prompted to choose:
+You will be prompted to choose a configured D365 environment, then the import runs against `input/users.xlsx` by default.
 
-1. **Generate DMF Excel files** — writes to `output\YYYYMMDD_HHMMSS\`
-2. **Import via OData** — choose a configured environment, then POST rows to F&O
-
-Skip the mode menu with `--mode file` or `--mode odata`.
-
-### File mode (generate Excel only)
+### Test connection
 
 ```powershell
-.\.venv\Scripts\python.exe -m app.main --mode file --input input\users.xlsx --config-dir config --output-dir output
+.\.venv\Scripts\python.exe -m app.main --environment TESTUSMF --test-connection
 ```
 
-Output folder contains (when applicable):
+Replace `TESTUSMF` with the `name` from your `d365_environments.yaml`.
 
-1. `Employee V2.xlsx`
-2. `User information.xlsx`
-3. `Security user role association.xlsx` (if any `SecurityRoles` values)
-4. `SystemSecurityUserRoleOrganizationEntity.xlsx` (if org columns are filled)
-
-### OData mode (import into F&O)
-
-Copy [`config/d365_environments.example.yaml`](config/d365_environments.example.yaml) to `config/d365_environments.yaml` and fill in each environment (including `client_secret`). The local `d365_environments.yaml` file is **gitignored** and must not be committed.
-
-**F&O / Entra prerequisites:**
-
-1. Entra app registration with a client secret
-2. API permission: **Microsoft Dynamics ERP** (with admin consent)
-3. F&O: **System administration → Microsoft Entra applications** — map the client ID to a user
-4. Security roles on that service account sufficient to create employees, system users, and assign security roles
+### Dry run (no POST)
 
 ```powershell
-# Test token and GET /data only
-.\.venv\Scripts\python.exe -m app.main --mode odata --environment TESTUSMF --test-connection
-
-# Dry-run (no POST; prints sample payloads)
-.\.venv\Scripts\python.exe -m app.main --mode odata --environment TESTUSMF --dry-run --input input\users-example.xlsx
-
-# Import all rows from input/users.xlsx
-.\.venv\Scripts\python.exe -m app.main --mode odata --environment TESTUSMF
+.\.venv\Scripts\python.exe -m app.main --environment TESTUSMF --input input\users-example.xlsx --dry-run --skip-preflight --yes
 ```
 
-Optional flags:
+### Full import
 
-- `--skip-person-link` — skip the PersonUsers step (no user–worker link)
-- `--skip-security` — skip security role and organization assignment
-- `--skip-security-orgs` — assign roles only; skip organization scope
-- `--yes` — do not ask for confirmation after preflight finds duplicates
-- `--skip-preflight` — skip environment duplicate checks before import
-- `--verbose` — print nested F&O error details and full OData JSON on failure
-- `--stop-on-error` — stop after the first failed POST
-- `--dry-run` — validate row building without calling F&O POST (still connects for schema/role discovery when `client_secret` is set)
+```powershell
+.\.venv\Scripts\python.exe -m app.main --environment TESTUSMF --input input\users.xlsx
+```
 
-OData POST uses the same column values as DMF generation, but JSON property names are taken from F&O (**PascalCase**), discovered via `$top=1` on each entity. By default only columns with a YAML **`source`**, plus columns marked **`odata_on_create: true`**, are sent. Empty fields are omitted. Override a property name with **`odata_property`** on a column if needed.
+After preflight, confirm unless you pass `--yes`.
 
-## Import into F&O (manual DMF or OData)
+### Useful flags
 
-1. Import **Employee V2** first (`EmployeesV2`).
-2. Import **User information** second (`SystemUsers`).
-3. Link user to worker via **Person users** (OData mode posts `PersonUsers` automatically unless `--skip-person-link`).
-4. Import **Security user role association** (`SecurityUserRoleAssociations`).
-5. Import **SystemSecurityUserRoleOrganizationEntity** when org columns were used (`SecurityUserRoleOrganizations`).
+| Flag | Effect |
+|------|--------|
+| `--skip-person-link` | Skip `PersonUsers` (no user–worker link) |
+| `--skip-security` | Skip role and organization assignment |
+| `--skip-security-orgs` | Assign roles only; skip organization scope |
+| `--yes` | Proceed without confirmation after preflight |
+| `--skip-preflight` | Skip duplicate checks against the environment |
+| `--verbose` | More detail on F&O errors and OData payloads |
+| `--stop-on-error` | Stop after the first failed POST |
+| `--dry-run` | Build payloads only; no POST (still connects for schema/roles when secrets are set) |
+| `--config-dir` | Alternate folder for entity YAML (default: `config`) |
+| `--input` | Alternate input workbook (default: `input/users.xlsx`) |
 
-Reference samples (Francisco demo row) are in [`DMF_Samples`](DMF_Samples).
+## Development and releases
+
+Day-to-day work happens on the **`development`** branch. **`main`** stays stable and receives changes only through pull requests.
+
+### Branch setup (first time)
+
+After cloning, create and track the development branch (once the branch exists on GitHub, use `git checkout development` instead):
+
+```powershell
+git checkout -b development
+git push -u origin development
+```
+
+### Typical workflow
+
+1. Check out `development` and create a feature branch if you prefer:  
+   `git checkout development`
+2. Commit and push your changes to `development` (or open a PR from a feature branch into `development`).
+3. When ready for a production-aligned release, open a **pull request from `development` into `main`**.
+4. Review and **merge** the PR on GitHub.
+
+### Automatic releases
+
+When a pull request into **`main`** is **merged**, GitHub Actions ([`.github/workflows/release-on-merge.yml`](.github/workflows/release-on-merge.yml)) creates a **dated release**:
+
+- First merge of the UTC day: `vYYYY.MM.DD` (example: `v2026.08.19`)
+- Additional merges the same UTC day: `vYYYY.MM.DD.2`, `vYYYY.MM.DD.3`, …
+
+The release uses GitHub’s auto-generated release notes from merged PRs. **Direct pushes to `main` do not create a release** — use a PR merge so the workflow runs.
+
+## Help
+
+```powershell
+.\.venv\Scripts\python.exe -m app.main --help
+```
