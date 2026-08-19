@@ -10,7 +10,7 @@ Generate Dynamics 365 Finance and Operations DMF import workbooks for **Employee
 
 ## Input
 
-Edit [`input/users.xlsx`](input/users.xlsx) (sheet `Users`) with one row per user:
+Copy [`input/users-example.xlsx`](input/users-example.xlsx) to `input/users.xlsx` (the real file is **gitignored** and must not be committed). Edit `input/users.xlsx` (sheet `Users`) with one row per user:
 
 | Column | Maps to |
 |--------|---------|
