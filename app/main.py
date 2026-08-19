@@ -1,4 +1,4 @@
-"""CLI entrypoint: generate F&O DMF import Excel files or OData import."""
+"""CLI entrypoint: import F&O users, workers, links, and security roles via OData."""
 
 from __future__ import annotations
 
@@ -11,9 +11,8 @@ ROOT = Path(__file__).resolve().parent.parent
 if __package__ in (None, ""):
     sys.path.insert(0, str(ROOT))
 
-from app.cli_prompts import choose_environment, choose_mode
+from app.cli_prompts import choose_environment
 from app.d365.environments import get_environment_by_name, load_environments
-from app.generate import run as generate_run
 from app.odata_import import run as odata_run
 from app.odata_import import run_connection_test
 
@@ -21,16 +20,10 @@ from app.odata_import import run_connection_test
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Generate Dynamics 365 F&O DMF import Excel files or import users "
-            "via OData (Employee V2, SystemUsers, PersonUsers link, and security "
-            "role assignments) from an input users workbook."
+            "Import Dynamics 365 F&O users via OData: create employees (EmployeesV2), "
+            "system users (SystemUsers), link user to worker (PersonUsers), and assign "
+            "security roles from an input users workbook."
         )
-    )
-    parser.add_argument(
-        "--mode",
-        choices=("file", "odata"),
-        default=None,
-        help="file: generate Excel only; odata: POST to F&O (skips mode menu)",
     )
     parser.add_argument(
         "--input",
@@ -45,61 +38,55 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Directory containing entity YAML configs (default: config)",
     )
     parser.add_argument(
-        "--output-dir",
-        type=Path,
-        default=ROOT / "output",
-        help="Root output directory; a timestamped subfolder is created inside it",
-    )
-    parser.add_argument(
         "--environment",
         metavar="NAME",
         default=None,
-        help="D365 environment name from config/d365_environments.yaml (OData mode)",
+        help="D365 environment name from config/d365_environments.yaml",
     )
     parser.add_argument(
         "--test-connection",
         action="store_true",
-        help="OData mode: verify token and GET /data only, then exit",
+        help="Verify token and GET /data only, then exit",
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="OData mode: build payloads and print feedback without POST",
+        help="Build payloads and print feedback without POST",
     )
     parser.add_argument(
         "--stop-on-error",
         action="store_true",
-        help="OData mode: stop after the first failed POST",
+        help="Stop after the first failed POST",
     )
     parser.add_argument(
         "--verbose",
         action="store_true",
-        help="OData mode: print full F&O error JSON on failed POST",
+        help="Print full F&O error JSON on failed POST",
     )
     parser.add_argument(
         "--skip-person-link",
         action="store_true",
-        help="OData mode: do not POST PersonUsers (user to person link)",
+        help="Do not POST PersonUsers (user to person link)",
     )
     parser.add_argument(
         "--skip-security",
         action="store_true",
-        help="OData mode: do not assign security roles or organization scope",
+        help="Do not assign security roles or organization scope",
     )
     parser.add_argument(
         "--skip-security-orgs",
         action="store_true",
-        help="OData mode: assign roles only; skip SecurityUserRoleOrganizations",
+        help="Assign roles only; skip SecurityUserRoleOrganizations",
     )
     parser.add_argument(
         "--yes",
         action="store_true",
-        help="OData mode: proceed with import without confirmation after preflight",
+        help="Proceed with import without confirmation after preflight",
     )
     parser.add_argument(
         "--skip-preflight",
         action="store_true",
-        help="OData mode: skip duplicate checks against the environment",
+        help="Skip duplicate checks against the environment",
     )
     return parser.parse_args(argv)
 
@@ -107,38 +94,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
 
-    mode = args.mode
-    if mode is None:
-        mode = choose_mode()
-
     input_path = args.input.resolve()
     config_dir = args.config_dir.resolve()
 
-    if mode == "file":
-        output_root = args.output_dir.resolve()
-        if not input_path.exists():
-            print(f"Error: input file not found: {input_path}", file=sys.stderr)
-            return 1
-        if not config_dir.is_dir():
-            print(f"Error: config directory not found: {config_dir}", file=sys.stderr)
-            return 1
-        try:
-            output_dir = generate_run(input_path, config_dir, output_root)
-        except Exception as exc:  # noqa: BLE001 - surface clean CLI errors
-            print(f"Error: {exc}", file=sys.stderr)
-            return 1
-
-        print(f"Generated DMF import files in: {output_dir}")
-        for path in sorted(output_dir.glob("*.xlsx")):
-            print(f"  - {path.name}")
-        print(
-            "Import order in F&O: 1) Employee V2, 2) User information, "
-            "3) Person users (if used), 4) Security user role association, "
-            "5) SystemSecurityUserRoleOrganizationEntity (if org columns filled)."
-        )
-        return 0
-
-    # OData mode
     env_config_path = config_dir / "d365_environments.yaml"
     require_secrets = not args.dry_run
     try:

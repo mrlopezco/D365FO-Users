@@ -1,0 +1,48 @@
+# Create a dated GitHub Release when a pull request is merged into main.
+# Direct pushes to main do not trigger a release — use development + PR.
+
+name: Release on merge to main
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout merge commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
+
+      - name: Choose date-based tag (unique per day)
+        id: tag
+        run: |
+          set -euo pipefail
+          BASE="v$(date -u +'%Y.%m.%d')"
+          TAG="${BASE}"
+          N=2
+          while git rev-parse "refs/tags/${TAG}" >/dev/null 2>&1; do
+            TAG="${BASE}.${N}"
+            N=$((N + 1))
+          done
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Release tag: ${TAG}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: Release ${{ steps.tag.outputs.tag }}
+          target_commitish: ${{ github.event.pull_request.merge_commit_sha }}
+          generate_release_notes: true
+          draft: false
+          prerelease: false

@@ -1,11 +1,11 @@
-"""Excel read/write helpers for DMF import generation."""
+"""Read the input users Excel workbook."""
 
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
 
-from openpyxl import Workbook, load_workbook
+from openpyxl import load_workbook
 
 from app.security import validate_users_security
 
@@ -58,18 +58,6 @@ def read_users(path: Path, sheet_name: str = "Users") -> list[dict[str, str]]:
         return users
     finally:
         wb.close()
-
-
-def write_workbook(path: Path, headers: list[str], rows: list[list[Any]]) -> None:
-    """Write a simple header + data workbook (DMF-style flat sheet)."""
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Sheet1"
-    ws.append(headers)
-    for row in rows:
-        ws.append(["" if v is None else v for v in row])
-    path.parent.mkdir(parents=True, exist_ok=True)
-    wb.save(path)
 
 
 def _cell_to_str(value: Any) -> str:

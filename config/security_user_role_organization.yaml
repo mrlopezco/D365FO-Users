@@ -1,5 +1,4 @@
-entity: SystemSecurityUserRoleOrganization
-output_filename: SystemSecurityUserRoleOrganizationEntity.xlsx
+entity: System security user role organization
 odata_entity: SecurityUserRoleOrganizations
 columns:
   USERID:

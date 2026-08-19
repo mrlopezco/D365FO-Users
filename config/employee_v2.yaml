@@ -1,5 +1,4 @@
-entity: EmployeeV2
-output_filename: Employee V2.xlsx
+entity: Employee V2
 odata_entity: EmployeesV2
 columns:
   PERSONNELNUMBER:

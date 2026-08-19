@@ -1,5 +1,4 @@
-entity: UserInformation
-output_filename: User information.xlsx
+entity: User information
 odata_entity: SystemUsers
 columns:
   USERID:

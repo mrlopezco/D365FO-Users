@@ -1,5 +1,4 @@
-entity: PersonUser
-output_filename: Person users.xlsx
+entity: Person users
 odata_entity: PersonUsers
 columns:
   USERID:

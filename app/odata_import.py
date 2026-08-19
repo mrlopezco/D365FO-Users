@@ -28,7 +28,7 @@ from app.d365.odata_mapping import (
 )
 from app.excel_io import read_users
 from app.cli_prompts import confirm_proceed_after_preflight
-from app.generate import ODATA_IMPORT_FILES, build_entity_rows, load_entity_config
+from app.entity_rows import ODATA_IMPORT_FILES, build_entity_rows, load_entity_config
 from app.preflight_plan import build_preflight_plan, print_preflight_plan
 from app.security_import import import_security_assignments
 
@@ -203,7 +203,7 @@ def import_entity_rows(
     verbose: bool = False,
 ) -> None:
     entity_name = str(config["odata_entity"])
-    display = config.get("entity") or config.get("output_filename") or entity_name
+    display = config.get("entity") or entity_name
     headers, rows = build_entity_rows(config, users)
     columns: dict[str, Any] = config["columns"]
     company = _resolve_company(env, config)
@@ -352,7 +352,7 @@ def import_person_user_links(
     verbose: bool = False,
 ) -> None:
     entity_name = str(config["odata_entity"])
-    display = config.get("entity") or config.get("output_filename") or entity_name
+    display = config.get("entity") or entity_name
     headers, rows = build_entity_rows(config, users)
     columns: dict[str, Any] = config["columns"]
     company = _resolve_company(env, config)

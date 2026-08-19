@@ -1,5 +1,4 @@
-entity: SecurityUserRoleAssociation
-output_filename: Security user role association.xlsx
+entity: Security user role association
 odata_entity: SecurityUserRoleAssociations
 columns:
   USERID:

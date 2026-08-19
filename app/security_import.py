@@ -22,7 +22,7 @@ from app.d365.odata_mapping import (
     normalize_property_key,
     row_to_odata_payload,
 )
-from app.generate import load_entity_config
+from app.entity_rows import load_entity_config
 from app.security import (
     OrgAssignmentRow,
     RoleAssignmentRow,
@@ -186,7 +186,7 @@ def _import_assignment_batch(
         return
 
     entity_name = str(config["odata_entity"])
-    display = config.get("entity") or config.get("output_filename") or entity_name
+    display = config.get("entity") or entity_name
     columns: dict[str, Any] = config["columns"]
     headers = list(columns.keys())
     company = _resolve_company(env, config)

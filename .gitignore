@@ -1,6 +1,5 @@
 .env
 .venv/
 __pycache__/
-output/
 config/d365_environments.yaml
 input/users.xlsx

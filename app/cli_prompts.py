@@ -1,25 +1,10 @@
-"""Interactive terminal prompts for CLI mode and environment selection."""
+"""Interactive terminal prompts for environment selection and import confirmation."""
 
 from __future__ import annotations
 
 import sys
 
 from app.d365.environments import D365Environment
-
-
-def choose_mode() -> str:
-    """Return 'file' or 'odata'."""
-    print()
-    print("Select mode:")
-    print("  1) Generate DMF Excel files (local output)")
-    print("  2) Import into Dynamics 365 F&O via OData")
-    while True:
-        choice = input("Enter choice [1-2]: ").strip()
-        if choice in ("1", "file"):
-            return "file"
-        if choice in ("2", "odata"):
-            return "odata"
-        print("Invalid choice. Enter 1 or 2.", file=sys.stderr)
 
 
 def choose_environment(environments: list[D365Environment]) -> D365Environment:
