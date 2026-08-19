@@ -1,0 +1,22 @@
+entity: SystemSecurityUserRoleOrganization
+output_filename: SystemSecurityUserRoleOrganizationEntity.xlsx
+odata_entity: SecurityUserRoleOrganizations
+columns:
+  USERID:
+    source: UserId
+  SECURITYROLENAME:
+    source: SecurityRoleName
+    odata_skip_create: true
+  SECURITYROLEIDENTIFIER:
+    odata_runtime: security_role_identifier
+    odata_on_create: true
+  ORGANIZATIONTYPE:
+    default: LegalEntity
+    odata_on_create: true
+  ORGANIZATIONID:
+    source: SecurityOrganizationId
+  OPERATINGUNITTYPE:
+    default: None
+    odata_on_create: true
+  HIERARCHYTYPE:
+    source: SecurityHierarchyType

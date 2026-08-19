@@ -31,6 +31,7 @@ class UserPreflightRow:
     alias: str
     system_user_matches: list[str] = field(default_factory=list)
     employee_matches: list[str] = field(default_factory=list)
+    existing_party_number: str | None = None
     person_link_note: str | None = None
 
     @property
@@ -65,6 +66,11 @@ class PreflightReport:
     @property
     def system_user_duplicate_count(self) -> int:
         return sum(1 for r in self.rows if r.has_system_user)
+
+    def apply_existing_party_numbers(self, party_numbers: dict[str, str]) -> None:
+        for row in self.rows:
+            if row.user_id and row.existing_party_number:
+                party_numbers[row.user_id] = row.existing_party_number
 
 
 def _find_system_user(
@@ -193,12 +199,15 @@ def run_preflight(
             email=email,
             alias=alias,
         )
-        emp_reasons, _ = _find_employee_by_email(
+        emp_reasons, emp_row = _find_employee_by_email(
             env=env,
             access_token=access_token,
             company=company,
             email=email,
         )
+        existing_party = None
+        if emp_row:
+            existing_party = extract_party_number_from_row(emp_row)
         link_note = None
         if check_person_links and user_id:
             link_note = _find_person_link(
@@ -216,6 +225,7 @@ def run_preflight(
                 alias=alias,
                 system_user_matches=sys_reasons,
                 employee_matches=emp_reasons,
+                existing_party_number=existing_party,
                 person_link_note=link_note,
             )
         )

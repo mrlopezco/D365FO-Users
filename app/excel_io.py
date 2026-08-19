@@ -7,6 +7,7 @@ from typing import Any
 
 from openpyxl import Workbook, load_workbook
 
+from app.security import validate_users_security
 
 REQUIRED_INPUT_COLUMNS = ("UserId", "Alias", "Email", "FirstName", "LastName")
 
@@ -53,6 +54,7 @@ def read_users(path: Path, sheet_name: str = "Users") -> list[dict[str, str]]:
 
         if not users:
             raise ValueError(f"No user rows found in {path}")
+        validate_users_security(users)
         return users
     finally:
         wb.close()

@@ -9,12 +9,24 @@ from typing import Any
 import yaml
 
 from app.excel_io import read_users, write_workbook
+from app.security import (
+    assignment_row_to_user_dict,
+    expand_org_assignments,
+    expand_role_assignments,
+)
 
-CONFIG_FILES = ("employee_v2.yaml", "user_information.yaml")
+CONFIG_FILES = (
+    "employee_v2.yaml",
+    "user_information.yaml",
+    "security_user_role_association.yaml",
+    "security_user_role_organization.yaml",
+)
 ODATA_IMPORT_FILES = (
     "employee_v2.yaml",
     "user_information.yaml",
     "person_users.yaml",
+    "security_user_role_association.yaml",
+    "security_user_role_organization.yaml",
 )
 
 
@@ -71,6 +83,42 @@ def build_entity_rows(
     return headers, rows
 
 
+def build_security_entity_rows(
+    config: dict[str, Any],
+    users: list[dict[str, str]],
+    *,
+    organization: bool,
+) -> tuple[list[str], list[list[Any]]]:
+    """Build DMF rows for security entities (one row per role or org assignment)."""
+    columns: dict[str, Any] = config["columns"]
+    headers = list(columns.keys())
+    if organization:
+        assignments = expand_org_assignments(users)
+    else:
+        assignments = expand_role_assignments(users)
+    rows = [
+        resolve_row(columns, assignment_row_to_user_dict(a)) for a in assignments
+    ]
+    return headers, rows
+
+
+def generate_security_workbook(
+    config: dict[str, Any],
+    users: list[dict[str, str]],
+    output_dir: Path,
+    *,
+    organization: bool,
+) -> Path | None:
+    headers, rows = build_security_entity_rows(
+        config, users, organization=organization
+    )
+    if not rows:
+        return None
+    out_path = output_dir / config["output_filename"]
+    write_workbook(out_path, headers, rows)
+    return out_path
+
+
 def generate_entity_workbook(
     config: dict[str, Any],
     users: list[dict[str, str]],
@@ -100,6 +148,19 @@ def run(
         if not cfg_path.exists():
             raise FileNotFoundError(f"Missing config file: {cfg_path}")
         config = load_entity_config(cfg_path)
-        written.append(generate_entity_workbook(config, users, output_dir))
+        if filename == "security_user_role_association.yaml":
+            path = generate_security_workbook(
+                config, users, output_dir, organization=False
+            )
+            if path:
+                written.append(path)
+        elif filename == "security_user_role_organization.yaml":
+            path = generate_security_workbook(
+                config, users, output_dir, organization=True
+            )
+            if path:
+                written.append(path)
+        else:
+            written.append(generate_entity_workbook(config, users, output_dir))
 
     return output_dir

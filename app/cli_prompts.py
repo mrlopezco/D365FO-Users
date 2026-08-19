@@ -43,14 +43,15 @@ def choose_environment(environments: list[D365Environment]) -> D365Environment:
         print("Invalid choice. Try again.", file=sys.stderr)
 
 
-def confirm_proceed_after_preflight(*, has_employee_duplicates: bool) -> bool:
-    """Ask user to continue OData import after preflight reported issues."""
+def confirm_proceed_after_preflight(*, create_count: int, skip_count: int) -> bool:
+    """Ask user to continue OData import after preflight plan is shown."""
     print()
-    if has_employee_duplicates:
-        print(
-            "Warning: Existing employees were found. Continuing may create duplicate "
-            "worker records in F&O."
-        )
+    print(
+        f"Summary: {create_count} operation(s) will POST to F&O; "
+        f"{skip_count} will be skipped (no change)."
+    )
+    if create_count == 0:
+        print("Nothing new to import — continuing will only run skip/no-op steps.")
     while True:
         choice = input("Proceed with OData import? [y/N]: ").strip().lower()
         if choice in ("y", "yes"):

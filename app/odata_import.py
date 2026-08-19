@@ -29,7 +29,15 @@ from app.d365.odata_mapping import (
 from app.excel_io import read_users
 from app.cli_prompts import confirm_proceed_after_preflight
 from app.generate import ODATA_IMPORT_FILES, build_entity_rows, load_entity_config
-from app.odata_preflight import print_preflight_report, run_preflight
+from app.preflight_plan import build_preflight_plan, print_preflight_plan
+from app.security_import import import_security_assignments
+
+_USER_ENTITY_CONFIGS = frozenset(
+    {
+        "employee_v2.yaml",
+        "user_information.yaml",
+    }
+)
 
 
 @dataclass
@@ -79,7 +87,34 @@ def _is_duplicate_user_error(status: int, body: Any) -> bool:
 
 def _is_duplicate_link_error(status: int, body: Any) -> bool:
     text = _error_text(status, body)
-    return "already exists" in text or "duplicate" in text or "already linked" in text
+    return (
+        "already exists" in text
+        or "duplicate" in text
+        or "already linked" in text
+        or "overlaps" in text
+    )
+
+
+def _person_link_exists(
+    *,
+    env: D365Environment,
+    access_token: str,
+    company: str | None,
+    user_id: str,
+) -> bool:
+    if not user_id:
+        return False
+    escaped = odata_escape_string_literal(user_id)
+    rows = fetch_entity_rows(
+        env.environment_url,
+        "PersonUsers",
+        access_token=access_token,
+        odata_filter=f"UserId eq '{escaped}'",
+        top=1,
+        company=company,
+        cross_company=True,
+    )
+    return bool(rows)
 
 
 def _lookup_party_number_by_email(
@@ -105,6 +140,31 @@ def _lookup_party_number_by_email(
     if not rows:
         return None
     return extract_party_number_from_row(rows[0])
+
+
+def _register_existing_employee_party(
+    user: dict[str, str],
+    party_numbers: dict[str, str],
+    *,
+    env: D365Environment,
+    access_token: str,
+    company: str | None,
+) -> str | None:
+    user_id = _user_key(user)
+    if user_id and user_id in party_numbers:
+        return party_numbers[user_id]
+    email = user.get("Email", "").strip()
+    if not email or not access_token:
+        return None
+    party = _lookup_party_number_by_email(
+        env=env,
+        access_token=access_token,
+        email=email,
+        company=company,
+    )
+    if party and user_id:
+        party_numbers[user_id] = party
+    return party
 
 
 def _ensure_party_numbers(
@@ -183,6 +243,21 @@ def import_entity_rows(
         )
 
         if dry_run:
+            if entity_norm == normalize_property_key("EmployeesV2") and access_token:
+                existing_party = _register_existing_employee_party(
+                    user,
+                    party_numbers,
+                    env=env,
+                    access_token=access_token,
+                    company=company,
+                )
+                if existing_party:
+                    print(
+                        f"  [{index}/{total}] {label} — employee already in F&O "
+                        f"(dry-run skip, PartyNumber {existing_party})"
+                    )
+                    result.succeeded += 1
+                    continue
             if index == 1:
                 preview = json.dumps(payload, indent=2, default=str)
                 print(f"  [dry-run] sample payload for {label}:")
@@ -191,6 +266,22 @@ def import_entity_rows(
             print(f"  [{index}/{total}] {label} — dry-run (skipped POST)")
             result.succeeded += 1
             continue
+
+        if entity_norm == normalize_property_key("EmployeesV2") and access_token:
+            existing_party = _register_existing_employee_party(
+                user,
+                party_numbers,
+                env=env,
+                access_token=access_token,
+                company=company,
+            )
+            if existing_party:
+                print(
+                    f"  [{index}/{total}] {label} — employee already in F&O "
+                    f"(skipped create, using PartyNumber {existing_party})"
+                )
+                result.succeeded += 1
+                continue
 
         status, body = odata_post_json(
             url,
@@ -335,6 +426,18 @@ def import_person_user_links(
             result.succeeded += 1
             continue
 
+        if access_token and _person_link_exists(
+            env=env,
+            access_token=access_token,
+            company=company,
+            user_id=user_id,
+        ):
+            print(
+                f"  [{index}/{total}] {label} — user/person link already exists (skipped)"
+            )
+            result.succeeded += 1
+            continue
+
         status, body = odata_post_json(
             url,
             access_token=access_token,
@@ -380,6 +483,8 @@ def run(
     link_users: bool = True,
     assume_yes: bool = False,
     skip_preflight: bool = False,
+    import_security: bool = True,
+    assign_security_orgs: bool = True,
 ) -> ImportResult:
     users = read_users(input_path)
     result = ImportResult()
@@ -410,22 +515,32 @@ def run(
         )
 
     if access_token and not skip_preflight:
-        print("Checking environment for existing users and employees...", flush=True)
+        print("Checking environment and building import plan...", flush=True)
         employee_cfg = load_entity_config(
             config_dir / "employee_v2.yaml", require_odata=True
         )
         company = _resolve_company(env, employee_cfg)
-        preflight = run_preflight(
-            users,
-            env=env,
-            access_token=access_token,
-            company=company,
-            check_person_links=link_users,
-        )
-        print_preflight_report(preflight)
-        if preflight.has_issues and not assume_yes:
+        try:
+            plan = build_preflight_plan(
+                users,
+                env=env,
+                access_token=access_token,
+                company=company,
+                config_dir=config_dir,
+                link_users=link_users,
+                import_security=import_security,
+                assign_security_orgs=assign_security_orgs,
+            )
+        except ValueError as exc:
+            print(f"Preflight failed: {exc}", file=sys.stderr)
+            result.cancelled = True
+            return result
+        print_preflight_plan(plan)
+        plan.apply_existing_party_numbers(party_numbers)
+        if not assume_yes:
             if not confirm_proceed_after_preflight(
-                has_employee_duplicates=preflight.employee_duplicate_count > 0
+                create_count=plan.create_count,
+                skip_count=plan.skip_count,
             ):
                 print("Import cancelled.")
                 result.cancelled = True
@@ -435,7 +550,8 @@ def run(
     entity_files = [
         f
         for f in ODATA_IMPORT_FILES
-        if f != "person_users.yaml" or (link_users and person_config_path.exists())
+        if f in _USER_ENTITY_CONFIGS
+        or (f == "person_users.yaml" and link_users and person_config_path.exists())
     ]
 
     for filename in entity_files:
@@ -490,6 +606,21 @@ def run(
         print(
             "Warning: config/person_users.yaml not found; skipping user–person link.",
             file=sys.stderr,
+        )
+
+    if import_security:
+        result.succeeded, result.failed = import_security_assignments(
+            env=env,
+            access_token=access_token,
+            config_dir=config_dir,
+            users=users,
+            dry_run=dry_run,
+            stop_on_error=stop_on_error,
+            verbose=verbose,
+            assign_orgs=assign_security_orgs,
+            result_succeeded=result.succeeded,
+            result_failed=result.failed,
+            result_errors=result.errors,
         )
 
     print(f"Summary: {result.succeeded} succeeded, {result.failed} failed")

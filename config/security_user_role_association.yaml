@@ -1,0 +1,18 @@
+entity: SecurityUserRoleAssociation
+output_filename: Security user role association.xlsx
+odata_entity: SecurityUserRoleAssociations
+columns:
+  USERID:
+    source: UserId
+  SECURITYROLENAME:
+    source: SecurityRoleName
+    odata_on_create: true
+  SECURITYROLEIDENTIFIER:
+    odata_runtime: security_role_identifier
+    odata_on_create: true
+  ASSIGNMENTMODE:
+    default: Manual
+    odata_on_create: true
+  ASSIGNMENTSTATUS:
+    default: Enabled
+    odata_on_create: true

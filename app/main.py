@@ -22,7 +22,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Generate Dynamics 365 F&O DMF import Excel files or import users "
-            "via OData (Employee V2, SystemUsers, and PersonUsers link) from an input users workbook."
+            "via OData (Employee V2, SystemUsers, PersonUsers link, and security "
+            "role assignments) from an input users workbook."
         )
     )
     parser.add_argument(
@@ -80,6 +81,26 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="OData mode: do not POST PersonUsers (user to person link)",
     )
+    parser.add_argument(
+        "--skip-security",
+        action="store_true",
+        help="OData mode: do not assign security roles or organization scope",
+    )
+    parser.add_argument(
+        "--skip-security-orgs",
+        action="store_true",
+        help="OData mode: assign roles only; skip SecurityUserRoleOrganizations",
+    )
+    parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="OData mode: proceed with import without confirmation after preflight",
+    )
+    parser.add_argument(
+        "--skip-preflight",
+        action="store_true",
+        help="OData mode: skip duplicate checks against the environment",
+    )
     return parser.parse_args(argv)
 
 
@@ -110,8 +131,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Generated DMF import files in: {output_dir}")
         for path in sorted(output_dir.glob("*.xlsx")):
             print(f"  - {path.name}")
-        print("Import order in F&O: 1) Employee V2, 2) User information.")
-        print("Link personnel number to user ID manually after both imports.")
+        print(
+            "Import order in F&O: 1) Employee V2, 2) User information, "
+            "3) Person users (if used), 4) Security user role association, "
+            "5) SystemSecurityUserRoleOrganizationEntity (if org columns filled)."
+        )
         return 0
 
     # OData mode
@@ -161,11 +185,17 @@ def main(argv: list[str] | None = None) -> int:
             stop_on_error=args.stop_on_error,
             verbose=args.verbose,
             link_users=not args.skip_person_link,
+            assume_yes=args.yes,
+            skip_preflight=args.skip_preflight,
+            import_security=not args.skip_security,
+            assign_security_orgs=not args.skip_security_orgs,
         )
     except Exception as exc:  # noqa: BLE001
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 
+    if result.cancelled:
+        return 0
     return 1 if result.failed else 0
 
 

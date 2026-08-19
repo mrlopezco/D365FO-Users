@@ -60,7 +60,8 @@ def fetch_entity_schema(
         return EntityODataSchema(property_names=[])
     value = body.get("value")
     if not isinstance(value, list) or not value:
-        if entity_name.strip().lower() == "personusers":
+        entity_key = entity_name.strip().casefold()
+        if entity_key == "personusers":
             return EntityODataSchema(
                 property_names=["UserId", "PartyNumber", "ValidFrom", "ValidTo"],
                 sample_types={
@@ -68,6 +69,42 @@ def fetch_entity_schema(
                     "PartyNumber": str,
                     "ValidFrom": str,
                     "ValidTo": str,
+                },
+            )
+        if entity_key == "securityuserroleassociations":
+            return EntityODataSchema(
+                property_names=[
+                    "UserId",
+                    "SecurityRoleIdentifier",
+                    "SecurityRoleName",
+                    "AssignmentStatus",
+                    "AssignmentMode",
+                ],
+                sample_types={
+                    "UserId": str,
+                    "SecurityRoleIdentifier": str,
+                    "SecurityRoleName": str,
+                    "AssignmentStatus": str,
+                    "AssignmentMode": str,
+                },
+            )
+        if entity_key == "securityuserroleorganizations":
+            return EntityODataSchema(
+                property_names=[
+                    "UserId",
+                    "SecurityRoleIdentifier",
+                    "OrganizationType",
+                    "OrganizationId",
+                    "OperatingUnitType",
+                    "HierarchyType",
+                ],
+                sample_types={
+                    "UserId": str,
+                    "SecurityRoleIdentifier": str,
+                    "OrganizationType": str,
+                    "OrganizationId": str,
+                    "OperatingUnitType": str,
+                    "HierarchyType": str,
                 },
             )
         raise RuntimeError(
