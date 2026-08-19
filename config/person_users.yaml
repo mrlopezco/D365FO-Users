@@ -1,0 +1,14 @@
+entity: PersonUser
+output_filename: Person users.xlsx
+odata_entity: PersonUsers
+columns:
+  USERID:
+    source: UserId
+  PARTYNUMBER:
+    odata_runtime: party_number
+  VALIDFROM:
+    default: '2026-01-01 00:00:00'
+    odata_on_create: true
+  VALIDTO:
+    default: '2154-12-31 23:59:59'
+    odata_on_create: true

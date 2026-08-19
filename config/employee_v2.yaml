@@ -1,0 +1,270 @@
+entity: EmployeeV2
+output_filename: Employee V2.xlsx
+odata_entity: EmployeesV2
+columns:
+  PERSONNELNUMBER:
+    default: null
+  EMPLOYMENTLEGALENTITYID:
+    default: '1000'
+    odata_on_create: true
+  EMPLOYMENTID:
+    default: null
+  ADDRESSBOOKS:
+    default: null
+  ADDRESSCITY:
+    default: null
+  ADDRESSCOUNTRYREGIONID:
+    default: null
+  ADDRESSCOUNTRYREGIONISOCODE:
+    default: null
+  ADDRESSCOUNTY:
+    default: null
+  ADDRESSDISTRICTNAME:
+    default: null
+  ADDRESSLOCATIONID:
+    default: null
+  ADDRESSLOCATIONROLES:
+    default: null
+  ADDRESSNAMEDESCRIPTION:
+    default: null
+  ADDRESSSTATE:
+    default: null
+  ADDRESSSTREET:
+    default: null
+  ADDRESSVALIDFROM:
+    default: '1900-01-01 00:00:00'
+  ADDRESSVALIDTO:
+    default: '1900-01-01 00:00:00'
+  ADDRESSZIPCODE:
+    default: null
+  ADJUSTEDWORKERSTARTDATE:
+    default: '1900-01-01 00:00:00'
+  ALLOWREHIRE:
+    default: 'No'
+  ANNIVERSARYDATETIME:
+    default: '1900-01-01 00:00:00'
+  BIRTHDATE:
+    default: '1900-01-01 00:00:00'
+  CALENDARID:
+    default: STD
+    odata_on_create: true
+  CITIZENSHIPCOUNTRYREGION:
+    default: null
+  DECEASEDDATE:
+    default: '1900-01-01 00:00:00'
+  DIMENSIONDISPLAYVALUE:
+    default: null
+  DISABLEDVERIFICATIONDATE:
+    default: '1900-01-01 00:00:00'
+  EDUCATION:
+    default: null
+  ELECTRONICLOCATIONID:
+    default: null
+  EMPLOYEEDETAILSEFFECTIVE:
+    default: '1900-01-01 00:00:00'
+  EMPLOYEEDETAILSEXPIRATION:
+    default: '1900-01-01 00:00:00'
+  EMPLOYMENTDETAILSEFFECTIVE:
+    default: '1900-01-01 00:00:00'
+  EMPLOYMENTDETAILSEXPIRATION:
+    default: '1900-01-01 00:00:00'
+  EMPLOYMENTENDDATE:
+    default: '2154-12-31 23:59:59'
+    odata_on_create: true
+  EMPLOYMENTNOTICEEMPLOYERQUANTITY:
+    default: '0'
+  EMPLOYMENTNOTICEEMPLOYERUNIT:
+    default: Week
+  EMPLOYMENTNOTICEWORKERQUANTITY:
+    default: '0'
+  EMPLOYMENTNOTICEWORKERUNIT:
+    default: Week
+  EMPLOYMENTSTARTDATE:
+    default: '2026-01-01 00:00:00'
+    odata_on_create: true
+  ETHNICORIGINID:
+    default: null
+  EXPATRIATERULINGVALIDFROM:
+    default: '1900-01-01 00:00:00'
+  EXPATRIATERULINGVALIDTO:
+    default: '1900-01-01 00:00:00'
+  FATHERBIRTHCOUNTRYREGION:
+    default: null
+  FIRSTNAME:
+    source: FirstName
+    default: null
+  GENDER:
+    default: None
+  ISDISABLED:
+    default: 'No'
+  ISDISABLEDVETERAN:
+    default: 'No'
+  ISEXPATRIATERULINGAPPLICABLE:
+    default: 'No'
+  ISFULLTIMESTUDENT:
+    default: 'No'
+  KNOWNAS:
+    default: null
+  LANGUAGEID:
+    default: en-US
+    odata_on_create: true
+  LASTDATEWORKED:
+    default: '1900-01-01 00:00:00'
+  LASTNAME:
+    source: LastName
+    default: null
+  LASTNAMEPREFIX:
+    default: null
+  MARITALSTATUS:
+    default: None
+  MIDDLENAME:
+    default: null
+  MILITARYSERVICEENDDATE:
+    default: '1900-01-01 00:00:00'
+  MILITARYSERVICESTARTDATE:
+    default: '1900-01-01 00:00:00'
+  MOTHERBIRTHCOUNTRYREGION:
+    default: null
+  NAME:
+    source: _display_name
+    default: null
+    odata_skip_create: true
+  NAMEALIAS:
+    source: _display_name
+    default: null
+    odata_skip_create: true
+  NAMESEQUENCEDISPLAYAS:
+    default: FirstMiddleLast
+  NATIONALITYCOUNTRYREGION:
+    default: null
+  NATIVELANGUAGEID:
+    default: null
+  NUMBEROFDEPENDENTS:
+    default: '0'
+  OFFICELOCATION:
+    default: null
+  OFFICELOCATIONID:
+    default: null
+  ORIGINALHIREDATETIME:
+    default: '1900-01-01 00:00:00'
+  PARTYNUMBER:
+    default: null
+  PARTYTYPE:
+    default: Person
+  PENSIONENROLLMENT:
+    default: '1900-01-01 00:00:00'
+  PENSIONSTART:
+    default: '1900-01-01 00:00:00'
+  PERSONALSUFFIX:
+    default: null
+  PERSONALTITLE:
+    default: null
+  PERSONBIRTHCITY:
+    default: null
+  PERSONBIRTHCOUNTRYREGION:
+    default: null
+  PERSONDETAILSVALIDFROM:
+    default: '2025-04-14 17:57:13'
+  PERSONDETAILSVALIDTO:
+    default: '2154-12-31 23:59:59'
+  PHONETICFIRSTNAME:
+    default: null
+  PHONETICLASTNAME:
+    default: null
+  PHONETICMIDDLENAME:
+    default: null
+  PRIMARYADDRESSLOCATION:
+    default: '0'
+  PRIMARYCONTACTEMAIL:
+    source: Email
+    default: null
+  PRIMARYCONTACTEMAILDESCRIPTION:
+    default: null
+  PRIMARYCONTACTEMAILISIM:
+    default: 'No'
+  PRIMARYCONTACTEMAILISPRIVATE:
+    default: 'No'
+  PRIMARYCONTACTEMAILPURPOSE:
+    default: null
+  PRIMARYCONTACTFACEBOOK:
+    default: null
+  PRIMARYCONTACTFACEBOOKDESCRIPTION:
+    default: null
+  PRIMARYCONTACTFACEBOOKISPRIVATE:
+    default: 'No'
+  PRIMARYCONTACTFACEBOOKPURPOSE:
+    default: null
+  PRIMARYCONTACTFAX:
+    default: null
+  PRIMARYCONTACTFAXDESCRIPTION:
+    default: null
+  PRIMARYCONTACTFAXEXTENSION:
+    default: null
+  PRIMARYCONTACTFAXISPRIVATE:
+    default: 'No'
+  PRIMARYCONTACTFAXPURPOSE:
+    default: null
+  PRIMARYCONTACTLINKEDIN:
+    default: null
+  PRIMARYCONTACTLINKEDINDESCRIPTION:
+    default: null
+  PRIMARYCONTACTLINKEDINISPRIVATE:
+    default: 'No'
+  PRIMARYCONTACTLINKEDINPURPOSE:
+    default: null
+  PRIMARYCONTACTPHONE:
+    default: null
+  PRIMARYCONTACTPHONEDESCRIPTION:
+    default: null
+  PRIMARYCONTACTPHONEEXTENSION:
+    default: null
+  PRIMARYCONTACTPHONEISMOBILE:
+    default: 'No'
+  PRIMARYCONTACTPHONEISPRIVATE:
+    default: 'No'
+  PRIMARYCONTACTPHONEPURPOSE:
+    default: null
+  PRIMARYCONTACTTWITTER:
+    default: null
+  PRIMARYCONTACTTWITTERDESCRIPTION:
+    default: null
+  PRIMARYCONTACTTWITTERISPRIVATE:
+    default: 'No'
+  PRIMARYCONTACTTWITTERPURPOSE:
+    default: null
+  PRIMARYCONTACTURL:
+    default: null
+  PRIMARYCONTACTURLDESCRIPTION:
+    default: null
+  PRIMARYCONTACTURLISPRIVATE:
+    default: 'No'
+  PRIMARYCONTACTURLPURPOSE:
+    default: null
+  PROBATIONPERIOD:
+    default: '1900-01-01 00:00:00'
+  PROFESSIONALSUFFIX:
+    default: null
+  PROFESSIONALTITLE:
+    default: null
+  REGULATORYESTABLISHMENTID:
+    default: null
+  RELOCATIONREIMBURSEMENT:
+    default: '.000000'
+  SENIORITYDATE:
+    default: '1900-01-01 00:00:00'
+  STARTDATE:
+    default: '1900-01-01 00:00:00'
+  SUMMARYVALIDFROM:
+    default: '2025-04-14 17:57:14'
+  SUMMARYVALIDTO:
+    default: '2154-12-31 23:59:59'
+  TERMINATIONDATE:
+    default: '1900-01-01 00:00:00'
+  TERMINATIONREASONCODEID:
+    default: null
+  TITLEID:
+    default: null
+  VETERANSTATUSID:
+    default: null
+  WORKSFROMHOME:
+    default: 'No'

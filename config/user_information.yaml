@@ -1,0 +1,98 @@
+entity: UserInformation
+output_filename: User information.xlsx
+odata_entity: SystemUsers
+columns:
+  USERID:
+    source: UserId
+    default: null
+  ACCOUNTTYPE:
+    default: ClaimsUser
+    odata_on_create: true
+  ALIAS:
+    source: Alias
+    default: null
+  AUTOLOGOFF:
+    default: '0'
+  AUTOMATICURLUPDATE:
+    default: 'No'
+  COMPANY:
+    default: '1000'
+    odata_on_create: true
+  DEFAULTCOUNTRYREGION:
+    default: USA
+  DENSITY:
+    default: Density30
+  DOCUMENTHANDLINGACTIVE:
+    default: 'Yes'
+  EMAIL:
+    source: Email
+    default: null
+  EMAILPROVIDERID:
+    default: null
+  ENABLED:
+    default: 'true'
+    odata_on_create: true
+  EVENTPOLLFREQUENCY:
+    default: '15'
+  EVENTPOPUPDISPLAYWHEN:
+    default: DefinedOnRule
+  EVENTPOPUPLINKDESTINATION:
+    default: ToAlert
+  EVENTPOPUPS:
+    default: 'No'
+  EVENTWORKFLOWSHOWPOPUP:
+    default: 'Yes'
+  EVENTWORKFLOWTASKSINACTIONCENTER:
+    default: 'No'
+  EXTERNALUSER:
+    default: 'false'
+  GLOBALEXCELEXPORTFILEPATH:
+    default: null
+  GLOBALEXCELEXPORTMODE:
+    default: '0'
+  GLOBALLISTPAGELINKMODE:
+    default: '0'
+  HELPLANGUAGE:
+    default: en-us
+    odata_on_create: true
+  HOMEPAGEREFRESHDURATION:
+    default: '0'
+  LANGUAGE:
+    default: null
+  MARKEMPTYLINKS:
+    default: 'No'
+  NETWORKDOMAIN:
+    default: https://sts.windows.net/
+    odata_on_create: true
+  PERSONNAME:
+    default: null
+  PREFERREDCALENDAR:
+    default: Gregorian
+  PREFERREDLOCALE:
+    default: null
+  PREFERREDTIMEZONE:
+    default: GMT_COORDINATEDUNIVERSALTIME
+  SENDALERTASEMAILMESSAGE:
+    default: DefinedOnRule
+  SENDNOTIFICATIONSINEMAIL:
+    default: 'No'
+  SHOWNOTIFICATIONSINTHEMICROSOFTDYNAMICSAX7CLIENT:
+    default: 'Yes'
+  SQMENABLED:
+    default: PromptMe
+  SQMGUID:
+    default: '{00000000-0000-0000-0000-000000000000}'
+  STARTPAGE:
+    default: DefaultDashboard
+  THEME:
+    default: Theme8
+  USERINFO_DEFAULTPARTITION:
+    default: 'true'
+  USERINFO_LANGUAGE:
+    default: en-us
+    odata_on_create: true
+  USERNAME:
+    source: _display_name
+    default: null
+  WORKFLOWLINEITEMNOTIFICATIONFORMAT:
+    default: Grouped

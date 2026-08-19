@@ -1,0 +1,9 @@
+# Copy this file to d365_environments.yaml and fill in real values (including client_secret).
+# d365_environments.yaml is gitignored and must not be committed.
+environments:
+  - name: TESTUSMF
+    environment_url: https://your-env.operations.dynamics.com
+    tenant_id: "00000000-0000-0000-0000-000000000000"
+    client_id: "00000000-0000-0000-0000-000000000000"
+    client_secret: your-client-secret-here
+    company: "USMF"
